@@ -1,20 +1,21 @@
+import dns.exception
+import dns.resolver
+import ntplib
+import os
+import random
+import socket
+import string
+import requests
+import struct
 import threading
 import time
-import ntplib
-import requests
-import string
-import random
 import zlib
-import struct
-import socket
-import os
-import time
-import requests
-import dns.resolver
-import dns.exception
 from socket import gaierror
 from time import ctime
 from typing import Tuple, Optional, Any
+
+# Third party library
+import requests
 
 def calculate_icmp_checksum(data: bytes) -> int:
     """
@@ -101,3 +102,61 @@ def create_icmp_packet(icmp_type: int = 8, icmp_code: int = 0,
 
     # Return the complete ICMP packet by concatenating the header and data.
     return header + data
+
+
+def ping(host: str, ttl: int = 64, timeout: int = 1, sequence_number: int = 1) -> Tuple[Any, float] | Tuple[Any, None]:
+    """
+    Send an ICMP Echo Request to a specified host and measure the round-trip time.
+
+    This function creates a raw socket to send an ICMP Echo Request packet to the given host.
+    It then waits for an Echo Reply, measuring the time taken for the round trip. If the
+    specified timeout is exceedd before receiving a reply, the function returns None for the pine time.
+
+    Args:
+    host (str): The IP address or hostname of the target host.
+    ttl (int): Time-To-Live for the ICMP packet. Determines how many hops (routers) the packet can pass through.
+    timeout (int): The time in seconds that the function will wait for a reply before giving up.
+    sequence_number (int): The sequence number for the ICMP packet. Useful for matching requests with replies.
+
+    Returns:
+    Tuple[Any, float] | Tuple[Any, None]: A tuple containing the address of the replier and the total ping time in milliseconds.
+    If the request times out, the function returns None for the ping time. the address part of the tuple is also None if no reply is received.
+    """
+
+    # Create a raw socket with the Internet Protocll (IPv4) and ICMP.
+    # socket.AF_INET specifies the IPv4 address family.
+    # socket.SOCK_RAW allows sending raw packets (including IMCP).
+    # socket.IPROTO_ICMP specifies the ICMP protocol.
+    
+    with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPROTO_ICMP) as sock:
+        # Set the Time-To-Live (TTL) for the ICMP packet.
+        sock.setsockopt(socket.IPTO_IP, socket.IP_TTL, ttl)
+
+        # Set the timeout for the socket's blcokig operations (e.g., recvfrom).
+        # icmp_type=8 and icmp_code=0 are standard for an Echo Request
+        packet: bytes = create_icmp_packet(icmp_type=8, icmp_code=0, sequence_number=sequence_number)
+
+        # Send the ICMP packet to the target host.
+        # The second argument of sendto is a tuple (host, port)
+        # For raw sockets, the port number is irrelavent, hence set to 1.
+        sock.sendto(packet, (host, 1))
+
+        # Record the current time to measure the round-trip time later.
+        start: float = time.time()
+
+        try:
+            # Wait to receive data from the socket (up to 1024 bytes).
+            # This will be the ICMP Echo Reply if the target host is reachable.
+            data, addr = sock.recvfrom(1024)
+
+            # Record the time when the reply is received.
+            end: float = time.time()
+
+            # Calculate the round-trip time in milliseconds.
+            total_ping_time: float = (end - start) * 1000
+
+            # Return the address of the replier and the total ping tme.
+            return addr, total_ping_time
+        except socket.timeout:
+            # If no reply is received within the timeout period, return None for the ping time.
+            return None, None
