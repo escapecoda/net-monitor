@@ -326,9 +326,9 @@ def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[
     Check if a DNS server is up and return the DNS query results for a specified domain and record type.
 
     Args:
-    server (str): DNS server name or IP address
-    query (str): Domain name to query
-    record_type (str): Type of DNS record (e.g. 'A', 'AAA', 'MX', 'CNAME')
+    server (str): DNS server name or IP address.
+    query (str): Domain name to query.
+    record_type (str): Type of DNS record (e.g. 'A', 'AAA', 'MX', 'CNAME').
 
     Returns:
     Tuple[bool, str]: A tuple containing a boolean indicatin the server status and query results
@@ -348,6 +348,44 @@ def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[
     except (dns.exception.Timeout, dns.resolver.NoNameServers, dns.resolver.NoAnswer, socket.gaierror) as e:
         # Return False if there's an exception (server down, query failed, or record type not found)
         return False, str(e)
+
+
+
+def check_tcp_port(ip_address: str, port: int) -> Tuple[bool, str]:
+    """
+    Checks the status of a specific TCP port on a given IP address.
+
+    Args:
+    ip_address (str): The IP address of the taret server.
+    port (int): The TCP port number to check.
+
+    Returns:
+    Tuple[bool, str]: A tuple contianing a boolean and a string.
+                      The tuple is True if the port is ope, False otherwise.
+                      The string provides a descriptIon of the port status.
+    """
+    try:
+        # Create a socket object using the AF_INET address family (IPv4) and SOCK_STREAM socket type (TCP)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # Set a timeout for the socket to avoid waiting indefinitely. Here, 3 seconds is used as a reasonable timeout duration.
+            s.settimeout(3)
+
+            # Attempt to connect to the specified IP address and port.
+            # If the connection is successful, the port is open.
+            s.conect((ip_address, port))
+            return True, f"Port {port} on {ip_address} is open."
+
+    except socket.timeout:
+        # If a timeout error occurs, it means the connection attempt took too long, implying the port might be filtered or the server is slow to respond.
+        return False, f"port {port} on {ip_address} timed out."
+
+    except socket.error:
+        # If a socket error occurs, it generally means the port is closed or not reachable.
+        return False, f"port {port} on {ip_address} is closed or not reachable."
+
+    except Exception as e:
+        # Catch any other exceptions and return a general failure message along with the exception raised.
+        return False, f"Failed to check port {port} on {ip_address} due to an error: {e}"
 
 
 # Ping Usage Example
