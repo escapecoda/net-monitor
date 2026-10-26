@@ -388,6 +388,50 @@ def check_tcp_port(ip_address: str, port: int) -> Tuple[bool, str]:
         return False, f"Failed to check port {port} on {ip_address} due to an error: {e}"
 
 
+def check_udp_port(ip_address: str, port: int, timeout: int = 3) -> Tuple[bool, str]:
+    """
+    Checks the status of a specific UDP port on a givent IP address.
+
+    Args:
+    ip_address (str): The IP address of the target server.
+    port (int): The UDP port number to check.
+    timeout (int): The timeout duration in seconds for the socket operation. Default is 3 seconds.
+
+    Returns:
+    Tuple[bool, str]: A tuple containing a boolean and a string.
+                      The boolean is True if the port is open (or if the status is uncertain), False if the port is definitely closed.
+                      The string provides a description of the port status.
+
+    Description:
+    This function attemps to send a UDP packet to the specified port on the given IP address.
+    Since UDP is a conectionless protocol, the function can't definitively determine if the port is open.
+    It can only confirm if the port is closed. Typically indicated by an ICMP 'Destination Unreachable' response.
+    """
+    try:
+        # Create a socket object using the AF_INET address family (IPv4) and SOCK_DGRAM socket type (UDP)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Set a tiemtou tfor the socket to avoid waiting indefinitely.
+            s.settimeout(timeout)
+
+            # Send a dummy packet to the specified IP address and port.
+            # As UDP is connectionless, this does not establish a connection but merely sends the packet.
+            s.sendto(b'', (ip_address, port))
+
+            try:
+                # Try to receive data from the socket.
+                # If an ICMP 'Destination Unreachable' message is received, the port is considered closed.
+                s.recvfrom(1024)
+                return False, f"Port {port} on {ip_address} is open or no response is received."
+
+            except socket.timeout:
+                # If a timeout occurs, it's uncertain whether the port is open or closed, as no response is received.
+                return True, f"Port {port} on {ip_address} is open or no response received."
+
+    except Exception as e:
+        # Catch any other exceptions and return a general failure message along with the exception raised.
+        return False, f"Failed to check UDP port {port} on {ip_address} due to an error: {e}"
+
+
 # Ping Usage Example
 print("Ping Example")
 ping_addr, ping_time = ping("8.8.8.8")
