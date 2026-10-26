@@ -1,3 +1,5 @@
+import socket
+import socketserver
 import dns.exception
 import dns.resolver
 import ntplib
@@ -128,9 +130,9 @@ def ping(host: str, ttl: int = 64, timeout: int = 1, sequence_number: int = 1) -
     # socket.SOCK_RAW allows sending raw packets (including IMCP).
     # socket.IPROTO_ICMP specifies the ICMP protocol.
     
-    with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPROTO_ICMP) as sock:
+    with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
         # Set the Time-To-Live (TTL) for the ICMP packet.
-        sock.setsockopt(socket.IPTO_IP, socket.IP_TTL, ttl)
+        sock.setsockopt(socket.IPPROTO_ICMP, socket.IP_TTL, ttl)
 
         # Set the timeout for the socket's blcokig operations (e.g., recvfrom).
         # icmp_type=8 and icmp_code=0 are standard for an Echo Request
@@ -160,3 +162,111 @@ def ping(host: str, ttl: int = 64, timeout: int = 1, sequence_number: int = 1) -
         except socket.timeout:
             # If no reply is received within the timeout period, return None for the ping time.
             return None, None
+
+
+def traceroute(host: str, max_hops: int = 30, pings_per_hop: int = 1, verbose: bool = False) -> str:
+    """
+    Perform a traceroute to the specified host, with multiple pings per hop.
+
+    Args:
+    host (str): The IP address or hostname of the target host.
+    max_hops (int): Maximum number of hops to try before stopping.
+    pings_per_hop (int): Number of pings to perform at each hop.
+    verbose (bool): If True, print additional details during execution.
+
+    Returns:
+    str: The results of the traceroute, including statistics for each hop.
+    """
+
+    # Header row for the results. Each column is formatted for alignment and width.
+    results = [f"{'Hop':>3} {'Address':<15} {'Min (ms)':>8} {'Avg (ms)':>8} {'Max (ms)':>8} {'Count':>5}"]
+
+    # Loop through each TTL (Time-To-Live) value from 1 to max_hops
+    for ttl in range(1, max_hops + 1):
+        # Print verbose output if enabled.
+        if verbose:
+            print(f"pinging {host} with ttl: {ttl}")
+
+        # List to store ping response times for current TTL
+        ping_times = []
+
+        # Perform pings_per_hop number of pings for the current TTL
+        for _ in range(pings_per_hop):
+            # Ping the host with the current TTL and sequence number.
+            # The sequence number is incremented with TTL for each ping.
+            addr, response = ping(host, ttl=ttl, sequence_number=ttl)
+
+            # If a response is received (not None), append it to ping_times
+            if response is not None:
+                ping_times.append(response)
+
+        # if there are valid ping responses, calculate and format the statistics.
+        if ping_times:
+            min_time = min(ping_times)
+            avg_time = sum(ping_times) / len(ping_times)
+            max_time = max(ping_times)
+            count = len(ping_times)
+
+            # Append the formatted results for this TTL to the results list.
+            results.append(f"{ttl:>3} {addr[0] if addr else '*':<15} {min_time:>8.2f}ms {avg_time:>8.2f}ms {max_time:>8.2f}ms {count:>5}")
+        else:
+            # If no valid responses, append a row of asterisks and zero count.
+            results.append(f"{ttl:>3} {'*':<15} {'*':>8} {'*':>8} {0:>5}")
+
+        # Print the last entry in the results if verbose mode is enabled.
+        if verbose and results:
+            print(f"\tResult: {results[-1]}")
+
+        # If the address of the response matches the target host, stop the traceroute
+        if addr and addr[0] == host:
+            break
+
+    return '\n'.join(results)
+
+
+def check_server_http(url: str) -> Tuple[bool, Optional[int]]:
+    """
+    Check if an HTTP server is up by making a request to the provided URL.
+
+    This function attempts to connect to a web server using the specified URL.
+    It returns a tuple containing a boolean indicating whether the server is up,
+    and the HTTP status code returned by the server.
+
+    :param url: URL of the servre (including http://)
+    :return: Tuple (True/False, status code)
+             True if server is up (status code < 400), False otherwise
+    """
+
+    try:
+        # Making a GET request to the server
+        response: requests.Response = requests.get(url)
+
+        # The HTTP status code is a number that indicates the outcome of the request.
+        # Here, we consider status codes less than 400 as successful,
+        # meaning the server is up and reachable.
+        # Common successful codes are 200 (OK), 301 (Moved Permanently), etc.
+        is_up: bool = response.status_code < 400
+
+        # Returning a tuple: (True/False, status code)
+        # True if the server is up, False if an exception occurs (see except block)
+        return is_up, response.status_code
+
+    except requests.RequestException:
+        # This block catches any excption that might occur during the request.
+        # This includes network problems, invalid URL, etc.
+        # If an exception occurs, we assme the server is down.
+        # Returning False for the status, and None for the status code,
+        # as we couldn't successfully connect to the server to get a status code.
+        return False, None
+
+
+# Ping Usage Example
+print("Ping Example")
+ping_addr, ping_time = ping("8.8.8.8")
+print(f"Google DNS (ping): {ping_addr[0]} - {ping_time:.2f} ms" if (ping_addr and ping_time is not None) else "Google DNS (ping): Request timed out or no reply received")
+
+# Traceroute Usage Example
+# Note: This function is included as an extra to round out the ICMP examples.
+print("\nTraceroute Example")
+print("Google DNS (traceroute)")
+print(traceroute("8.8.8.8", verbose=True))
