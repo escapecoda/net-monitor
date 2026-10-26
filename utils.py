@@ -40,4 +40,9 @@ def calculate_icmp_checksum(data: bytes) -> int:
         word: int = (data[i] << 8) + (data[i + 1])
         checksum += word # Add the 16-bit word to the sum.
 
+    # add the overflow back into the sum
+    checksum = (checksum >> 16) + (checksum & 0xffff)
+    # complement the result
+    checksum = ~checksum & 0xffff
+
     return checksum
