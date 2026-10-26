@@ -1,3 +1,4 @@
+import string
 import socket
 import socketserver
 import dns.exception
@@ -288,6 +289,35 @@ def check_server_https(url: str, timeout: int = 5) -> Tuple[bool, Optional[int],
         # 'e' contains the details of the exception.
         return False, None, f"Error during request: {e}"
 
+
+def check_ntp_server(server: str) -> Tuple[bool, Optional[str]]:
+    """
+    Checks if an NTP server is up and returns its status and time.
+
+    Args:
+    server (str): The hostname or IP address of the NTP server to check.
+
+    Returns:
+    Tuple[bool, Optional[str]]: A tuple containing a boolean indicating the server status
+                                (True if up, False if down) and the current time as a string
+                                if the server is up, or None if it's down.
+    """
+    
+    # Create an NTP client instance
+    client = ntplib.NTPClient()
+
+    try:
+        # Request time from the NTP server
+        # 'version=3' specifies the NTP version to use for the request
+        response = client.request(server, version=3)
+
+        # If the request is successful, return True and the server time.
+        # 'ctime' converts the time in seconds since the epoch to a readable format.
+        return True, ctime(response.tx_time)
+
+    except (ntplib.NTPException, gaierror):
+        # If an exception occurs (server is down or unreachable), return False and None
+        return False, None
 
 
 # Ping Usage Example
