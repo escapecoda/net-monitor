@@ -1,3 +1,4 @@
+import statistics
 import string
 import socket
 import socketserver
@@ -318,6 +319,35 @@ def check_ntp_server(server: str) -> Tuple[bool, Optional[str]]:
     except (ntplib.NTPException, gaierror):
         # If an exception occurs (server is down or unreachable), return False and None
         return False, None
+
+
+def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[bool, str]:
+    """
+    Check if a DNS server is up and return the DNS query results for a specified domain and record type.
+
+    Args:
+    server (str): DNS server name or IP address
+    query (str): Domain name to query
+    record_type (str): Type of DNS record (e.g. 'A', 'AAA', 'MX', 'CNAME')
+
+    Returns:
+    Tuple[bool, str]: A tuple containing a boolean indicatin the server status and query results
+                      (True if up, False if down) and the query results as a string.
+    """
+    try:
+        # Set the DNS resolver to use the specified server.
+        resolver = dns.resolver.Resolver()
+        resolver.nameservers = [socket.gethostbyname(server)]
+
+        # Perform a DNS query for the specified domain and record type
+        query_results = resolver.resolve(query, record_type)
+        results = [str(rdata) for rdata in query_results]
+
+        return True, results
+
+    except (dns.exception.Timeout, dns.resolver.NoNameServers, dns.resolver.NoAnswer, socket.gaierror) as e:
+        # Return False if there's an exception (server down, query failed, or record type not found)
+        return False, str(e)
 
 
 # Ping Usage Example
