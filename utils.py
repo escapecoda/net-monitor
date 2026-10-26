@@ -260,6 +260,36 @@ def check_server_http(url: str) -> Tuple[bool, Optional[int]]:
         return False, None
 
 
+def check_server_https(url: str, timeout: int = 5) -> Tuple[bool, Optional[int], str]:
+    try:
+        # Setting custom headers for the request. Here, 'User-Agent' is set to mimic a web browser.
+        headers: dict = {'User-Agent': 'Mozilla/5.0'}
+
+        # Making a GET request to the server with the specified URL and timeout.
+        # Time timeout ensures that the request does not hang indefinitely.
+        response: requests.Response = requests.get(url, headers=headers, timeout=timeout)
+
+        # Checking if the status code is less than 400. Status codes in the 200-399 range generally indicate success.
+        is_up: bool = response.status_code < 400
+
+        # Returning a tuple: (server status, status code, descriptive message)
+        return is_up, response.status_code, "Server is up"
+
+    except requests.ConnectionError:
+        # This exception is raised ofr network-related errors, like DNS failure or refused connection.
+        return False, None, "Connection Error"
+
+    except requests.Timeout:
+        # This exception is raised if the server does not send any data in the alloted time (specified by timeout)
+        return False, None, "Timeout occurred"
+
+    except requests.RequestException as e:
+        # A cathc-all exception for any error not covered by the specific exceptions above.
+        # 'e' contains the details of the exception.
+        return False, None, f"Error during request: {e}"
+
+
+
 # Ping Usage Example
 print("Ping Example")
 ping_addr, ping_time = ping("8.8.8.8")
