@@ -328,7 +328,7 @@ def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[
     Args:
     server (str): DNS server name or IP address.
     query (str): Domain name to query.
-    record_type (str): Type of DNS record (e.g. 'A', 'AAA', 'MX', 'CNAME').
+    record_type (str): Type of DNS record (e.g. 'A', 'AAAA', 'MX', 'CNAME').
 
     Returns:
     Tuple[bool, str]: A tuple containing a boolean indicatin the server status and query results
@@ -345,7 +345,7 @@ def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[
 
         return True, results
 
-    except (dns.exception.Timeout, dns.resolver.NoNameServers, dns.resolver.NoAnswer, socket.gaierror) as e:
+    except (dns.exception.Timeout, dns.resolver.NoNameservers, dns.resolver.NoAnswer, socket.gaierror) as e:
         # Return False if there's an exception (server down, query failed, or record type not found)
         return False, str(e)
 
@@ -442,3 +442,50 @@ print(f"Google DNS (ping): {ping_addr[0]} - {ping_time:.2f} ms" if (ping_addr an
 print("\nTraceroute Example")
 print("Google DNS (traceroute)")
 print(traceroute("8.8.8.8", verbose=True))
+
+# HTTP/HTTPS Usage Examples
+print("\nHTTP/HTTPS Examples:")
+http_url = "http://example.com"
+http_server_status, http_server_response_code = check_server_http(http_url)
+print(f"HTTP URL: {http_url}, HTTP server status: {http_server_status}, Status Code: {http_server_response_code if http_server_response_code is not None else 'N/A'}")
+
+https_url = "https://example.com"
+https_server_status, https_server_response_code, description = check_server_https(https_url)
+print(f"HTTPS URL: {https_url}, HTTPS server status: {https_server_status}, Status Code: {https_server_response_code if https_server_response_code is not None else 'N/A'}, Description: {description}")
+
+# NTP Usage Example
+print("\nNTP Example:")
+ntp_server = "pool.ntp.org"
+ntp_server_status, ntp_server_time = check_ntp_server(ntp_server)
+print(f"{ntp_server} is up. Time: {ntp_server_time}" if ntp_server_status else f"{ntp_server} is down.")
+
+# DNS Usage Examples
+print("\nDNS Examples:")
+dns_server = "8.8.8.8"
+
+dns_queries = [
+    ('google.com', 'A'),     # IPv4 Address
+    ('google.com', 'MX'),    # Mail Exchange
+    ('google.com', 'AAAA'),  # IPv6 Address
+    ('google.com', 'CNAME'), # Canonical Name
+    ('yahoo.com', 'A'),      # IPv4 Address
+]
+
+for dns_query, dns_record_type in dns_queries:
+    dns_server_status, dns_query_results = check_dns_server_status(dns_server, dns_query, dns_record_type)
+    print(f"DNS Server: {dns_server}, Status: {dns_server_status}, {dns_record_type} Record Results: {dns_query_results}")
+
+
+# TCP Port Usage Example
+print("\nTCP Port Example:")
+tcp_port_server = "google.com"
+tcp_port_number = 80
+tcp_port_status, tcp_port_description = check_tcp_port(tcp_port_server, tcp_port_number)
+print(f"Server: {tcp_port_server}, TCP Port: {tcp_port_number}, TCP Port Status: {tcp_port_status}, Description: {tcp_port_description}")
+
+# UDP Port usage Example
+print("\nUDP Port Example")
+udp_port_server = "8.8.8.8"
+udp_port_number = 53
+udp_port_status, udp_port_description = check_udp_port(udp_port_server, udp_port_number)
+print(f"Server: {udp_port_server}, UDP Port: {udp_port_number}, UDP Port Status: {udp_port_status}, Descriptoin: {udp_port_description}")
