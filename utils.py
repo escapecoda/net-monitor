@@ -1,7 +1,5 @@
-import statistics
 import string
 import socket
-import socketserver
 import dns.exception
 import dns.resolver
 import ntplib
@@ -234,7 +232,7 @@ def check_server_http(url: str) -> Tuple[bool, Optional[int]]:
     It returns a tuple containing a boolean indicating whether the server is up,
     and the HTTP status code returned by the server.
 
-    :param url: URL of the servre (including http://)
+    :param url: URL of the server (including http://)
     :return: Tuple (True/False, status code)
              True if server is up (status code < 400), False otherwise
     """
@@ -263,6 +261,19 @@ def check_server_http(url: str) -> Tuple[bool, Optional[int]]:
 
 
 def check_server_https(url: str, timeout: int = 5) -> Tuple[bool, Optional[int], str]:
+    """
+    Check if an HTTPS server is up by making a request to the provided URL.
+
+    This function attempts to connect to a web server using the specified URL.
+    It returns a tuple containing a boolean indicating whether the server is up,
+    and the HTTP status code returned by the server. A description of the status is
+    also given as a string.
+
+    :param url: URL of the server (including https://)
+    :return: Tuple (True/False, status code, description)
+             True if server is up (status code < 400), False otherwise
+    """
+
     try:
         # Setting custom headers for the request. Here, 'User-Agent' is set to mimic a web browser.
         headers: dict = {'User-Agent': 'Mozilla/5.0'}
@@ -321,7 +332,7 @@ def check_ntp_server(server: str) -> Tuple[bool, Optional[str]]:
         return False, None
 
 
-def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[bool, str]:
+def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[bool, str] | Tuple[bool, list[str]]:
     """
     Check if a DNS server is up and return the DNS query results for a specified domain and record type.
 
@@ -331,8 +342,9 @@ def check_dns_server_status(server: str, query: str, record_type: str) -> Tuple[
     record_type (str): Type of DNS record (e.g. 'A', 'AAAA', 'MX', 'CNAME').
 
     Returns:
-    Tuple[bool, str]: A tuple containing a boolean indicatin the server status and query results
-                      (True if up, False if down) and the query results as a string.
+    Tuple[bool, list[str]] | Tuple[bool, str]: A tuple containing a boolean indicating the server status and query results
+                                               (True if up, False if down) and the query results as a list of strings.
+                                               If the server is down, the error that occured will be returned as a string.
     """
     try:
         # Set the DNS resolver to use the specified server.
@@ -372,7 +384,7 @@ def check_tcp_port(ip_address: str, port: int) -> Tuple[bool, str]:
 
             # Attempt to connect to the specified IP address and port.
             # If the connection is successful, the port is open.
-            s.conect((ip_address, port))
+            s.connect((ip_address, port))
             return True, f"Port {port} on {ip_address} is open."
 
     except socket.timeout:
